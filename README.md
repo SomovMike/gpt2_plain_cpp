@@ -79,6 +79,10 @@ Initially I implemented very naive inference without any optimizations (except K
 ### 1. 
 
 
+## Acknowledgments
 
+- **[Andrej Karpathy](https://github.com/karpathy)**
+- **[Georgi Gerganov](https://github.com/ggerganov)** 
+- **[Simon Boehm](https://siboehm.com/)**
 
 
