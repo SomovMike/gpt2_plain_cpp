@@ -254,11 +254,12 @@ void Embedding::forward(const int token, float *output) {
 
 void Linear::forward(const float* input, float* output) {
     for (int o = 0; o < _n_output_channels; o++) {
-        float val = (_b != nullptr) ? _b[o] : 0.0f;
-        for (int i = 0; i < _n_input_channels; i++) {
-            val += input[i] * _w[i * _n_output_channels + o];
+        output[o] = (_b != nullptr) ? _b[o] : 0.0f;
+    }
+    for (int i = 0; i < _n_input_channels; i++) {
+        for (int o = 0; o < _n_output_channels; o++) {
+            output[o] += input[i] * _w[i * _n_output_channels + o];
         }
-        output[o] = val;
     }
 }
 
@@ -454,8 +455,8 @@ int main(int argc, char *argv[]) {
     std::vector<int> input_tokens = tokenizer.encode(prompt);
 
     auto init_end = high_resolution_clock::now();
-    duration<double> init_time = duration_cast<duration<double>>(init_end - init_start);
-    std::cout << "Initialization time: " << init_time.count() << " seconds" << std::endl;
+    auto init_time = duration_cast<duration<double, std::milli>>(init_end - init_start);
+    std::cout << "Initialization time: " << init_time.count() << " ms" << std::endl;
 
     // Process the input tokens
     for (int token : input_tokens) {
@@ -468,8 +469,8 @@ int main(int argc, char *argv[]) {
     generated_tokens.push_back(next_token);
 
     auto first_token_end = high_resolution_clock::now();
-    duration<double> first_token_time = duration_cast<duration<double>>(first_token_end - init_end);
-    std::cout << "Time to first token: " << first_token_time.count() << " seconds" << std::endl;
+    auto first_token_time = duration_cast<duration<double, std::milli>>(first_token_end - init_end);
+    std::cout << "Time to first token: " << first_token_time.count() << " ms" << std::endl;
 
     for (int i = 0; i < n_tokens_to_predict; ++i) {
         model.forward(next_token, run_state.logits);
@@ -478,10 +479,10 @@ int main(int argc, char *argv[]) {
     }
 
     auto last_token_end = high_resolution_clock::now();
-    duration<double> all_tokens_time = duration_cast<duration<double>>(last_token_end - first_token_end);
-    std::cout << "Time per output token: " << all_tokens_time.count()/n_tokens_to_predict << " seconds" << std::endl;
-    duration<double> total_gen_time = duration_cast<duration<double>>(last_token_end - init_end);
-    std::cout << "Total generation time: " << total_gen_time.count() << " seconds" << std::endl << std::endl;
+    auto all_tokens_time = duration_cast<duration<double, std::milli>>(last_token_end - first_token_end);
+    std::cout << "Time per output token: " << all_tokens_time.count()/n_tokens_to_predict << " ms" << std::endl;
+    auto total_gen_time = duration_cast<duration<double, std::milli>>(last_token_end - init_end);
+    std::cout << "Total generation time: " << total_gen_time.count() << " ms" << std::endl << std::endl;
 
     //Decode and print prompt with generated sequence
     std::string generated_text = tokenizer.decode(generated_tokens);
