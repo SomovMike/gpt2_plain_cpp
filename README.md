@@ -65,10 +65,12 @@ Here I will try to describe all performance optimizations
 I made so far. Our main metrics will be Time To First Token (TTFT) and
 Time Per Output Token (TPOT) and Total generation time (TTFT + TPOT x number of generated tokens).
 
+My hardware: **MacBook Pro (M2, 2023)** 
+
 |                | TTFT (50 tokens promt) | TPOT (200 tokens in total) | Total generation time |
 |----------------|------------------------|----------------------------|-----------------------|
-| Optimization 0 | 7900 ms                | 155 ms                     | 38.9s                 |
-| Optimization 1 |                        |                            |                       |
+| Optimization 0 | 7900 ms                | 155 ms                     | 38.9 s                |
+| Optimization 1 | 614.8 ms               | 12.3 ms                    | 3.1 s                 |
 | Optimization 2 |                        |                            |                       |
 
 ### 0. No optimizations
@@ -76,8 +78,15 @@ Time Per Output Token (TPOT) and Total generation time (TTFT + TPOT x number of 
 Initially I implemented very naive inference without any optimizations (except KV-cache).
 
 
-### 1. 
-
+### 1. Cache-friendly implementation of Linear::forward
+Let's profile our code to find a hot path:
+![Profiler screenshot](screenshots/profiler0.png)
+As we can see, the program spends the majority of its time (97.5%) in the *forward* function of the *Linear* layer, 
+which actually is quite obvious. We can observe that the current implementation
+is not cache-friendly. Since the weight matrices are row-continuous, the memory access pattern is non-sequential.
+To address this, we can simply swap the inner and outer loops (see the corresponding [commit](https://github.com/SomovMike/gpt2_plain_cpp/commit/f355a7e33eddce5deff16828b94f94c2bb303329)).
+The first optimization is the easiest,
+but at the same time bringing the most significant performance improvement (12.5x!).
 
 ## Acknowledgments
 

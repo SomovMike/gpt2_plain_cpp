@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto -O3 -ffast-math -Ofast")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto -O3 -ffast-math -Ofast -march=native")
     set(CMAKE_UNITY_BUILD ON)
     message("Release mode enabled")
 endif()
