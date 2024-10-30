@@ -8,6 +8,9 @@
 #include <random>
 #include <numeric>  // for std::accumulate
 #include <chrono>
+#ifdef WITH_OPENMP
+#include <omp.h>
+#endif
 #include "utils.h"
 
 struct Config {
@@ -19,6 +22,7 @@ struct Config {
     static constexpr int vocab_size = 50257;  // vocabulary size
     static constexpr int seq_len = 1024;      // max sequence length
     static constexpr int topk_val = 50;       // k value for topk function
+    static int n_threads;
 };
 
 struct RunState{

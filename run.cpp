@@ -1,8 +1,9 @@
 #include "run.h"
 
+int Config::n_threads = 1;
 //============== UTILS FUNCTIONS ===============
 void parse_args(int argc, char *argv[], std::string& model_weights_path, std::string& vocab_json_path,
-                std::string& prompt, int& n_tokens_to_predict, int& seed) {
+                std::string& prompt, int& n_tokens_to_predict, int& seed, int& n_threads) {
     if (argc < 3) {
         std::cerr << "model weights or/and vocab are not provided" << std::endl;
         return exit(1);
@@ -16,6 +17,8 @@ void parse_args(int argc, char *argv[], std::string& model_weights_path, std::st
             n_tokens_to_predict = atoi(argv[i + 1]);
         else if (std::string(argv[i]) == "-s")
             seed = atoi(argv[i + 1]);
+        else if (std::string(argv[i]) == "-t")
+            n_threads = atoi(argv[i + 1]);
     }
 }
 
@@ -253,13 +256,14 @@ void Embedding::forward(const int token, float *output) {
 
 
 void Linear::forward(const float* input, float* output) {
+    #pragma omp parallel for shared(output, input, _w, _b, _n_input_channels, _n_output_channels) \
+                                                        default(none) num_threads(Config::n_threads)
     for (int o = 0; o < _n_output_channels; o++) {
-        output[o] = (_b != nullptr) ? _b[o] : 0.0f;
-    }
-    for (int i = 0; i < _n_input_channels; i++) {
-        for (int o = 0; o < _n_output_channels; o++) {
-            output[o] += input[i] * _w[i * _n_output_channels + o];
+        float val = (_b != nullptr) ? _b[o] : 0.0f;
+        for (int i = 0; i < _n_input_channels; i++) {
+            val += input[i] * _w[o * _n_input_channels + i];
         }
+        output[o] = val;
     }
 }
 
@@ -297,7 +301,6 @@ void MLP::forward(const float *input, float *output) {
 
 void SelfAttention::forward(const float *input, float *output) {
     _c_attn.forward(input, run_state.qkv);
-    //storeFloatsToFile(run_state.qkv, Config::dim*3, "h0_check.txt");
     float *q = run_state.qkv; // (n_heads, head_size)
     float *k = run_state.qkv + Config::dim; // (n_heads, head_size)
     float *v = run_state.qkv + Config::dim*2; // (n_heads, head_size)
@@ -394,7 +397,7 @@ int main(int argc, char *argv[]) {
     std::string prompt;
     int n_tokens_to_predict = 200;
     int seed = -1;
-    parse_args(argc, argv, model_weights_path, vocab_json_path, prompt, n_tokens_to_predict, seed);
+    parse_args(argc, argv, model_weights_path, vocab_json_path, prompt, n_tokens_to_predict, seed, Config::n_threads);
 
     if (prompt.empty())
         std::cerr << "You do not specify prompt!\n";

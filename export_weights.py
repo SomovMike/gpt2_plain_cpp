@@ -15,9 +15,12 @@ def export(model_weights, filepath):
     for tensor in model_weights.values():
         if tensor.size() == torch.Size([1, 1, 1024, 1024]):
             continue
+        if (tensor.size() == torch.Size([768, 2304]) or tensor.size() == torch.Size([768, 3072])
+                or tensor.size() == torch.Size([3072, 768]) or tensor.size() == torch.Size([768, 768])):
+            tensor = tensor.T.contiguous()
         serialize_fp32(out_file, tensor)
 
-    decode_emb = model_weights['wte.weight'].transpose(0, 1).contiguous()
+    decode_emb = model_weights['wte.weight']
     serialize_fp32(out_file, decode_emb)
 
     # write to binary file
