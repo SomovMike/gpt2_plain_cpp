@@ -18,6 +18,7 @@ inference speed and efficiency.
 - **C++ compiler:** A compiler that supports C++17 or higher (e.g., GCC, Clang, MSVC).
 - **CMake:** Version 3.15 or higher for building the project.
 - **Python3 with Pytorch installed:** For running the conversion script to prepare model weights.
+- **OpenMP (Optional):** for running inference on multiple threads
 
 ### Preparing the Model Weights and Vocabulary
 
@@ -40,6 +41,10 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make
 ``` 
+or if you want to compile with openMP:
+```console
+cmake -DCMAKE_BUILD_TYPE=Release -DWITH_OPENMP=1 ..
+``` 
 
 ### Running the inference
 
@@ -57,6 +62,7 @@ Optional:
 [-p <std::string>] prompt to start generation with
 [-n <int>] number of tokens to generate
 [-s <int>] seed if you want to reproduce the result
+[-t <int>] number of threads (default: 1)
 ```
 
 ## Optimization path
@@ -71,7 +77,7 @@ My hardware: **MacBook Pro (M2, 2023)**
 |----------------|------------------------|----------------------------|-----------------------|
 | Optimization 0 | 7900 ms                | 155 ms                     | 38.9 s                |
 | Optimization 1 | 614.8 ms               | 12.3 ms                    | 3.1 s                 |
-| Optimization 2 |                        |                            |                       |
+| Optimization 2 | 322.19 ms              | 7.2 ms                     | 1.7 s                 |
 
 ### 0. No optimizations
 
@@ -84,9 +90,30 @@ Let's profile our code to find a hot path:
 As we can see, the program spends the majority of its time (97.5%) in the *forward* function of the *Linear* layer, 
 which actually is quite obvious. We can observe that the current implementation
 is not cache-friendly. Since the weight matrices are row-continuous, the memory access pattern is non-sequential.
-To address this, we can simply swap the inner and outer loops (see the corresponding [commit](https://github.com/SomovMike/gpt2_plain_cpp/commit/f355a7e33eddce5deff16828b94f94c2bb303329)).
+To address this, we can simply swap the inner and outer loops (see the
+corresponding [commit](https://github.com/SomovMike/gpt2_plain_cpp/commit/f355a7e33eddce5deff16828b94f94c2bb303329)).
 The first optimization is the easiest,
 but at the same time bringing the most significant performance improvement (12.5x!).
+
+### 2. Add multithreading
+
+We still have room for improvement in the forward function in the Linear layer.
+Currently, we are using only a single thread, so adding multithreading
+to the Linear::forward function could help, as this is still
+a hot path for inference. First, we need to transpose the
+weight matrices of all linear layers to make them
+column-continuous, then swap the inner and outer loops.
+This adjustment maintains sequential memory access while enabling
+more effective parallelism, as each thread can process
+its own batch of output channels. (see the
+corresponding [commit](https://github.com/SomovMike/gpt2_plain_cpp/commit/9e5b65df9b91c7492b205447adf5105a410eceee)) This optimization brings almost
+a twofold performance improvement with 8 threads enabled.
+For larger models, the improvement should be even more
+significant, as the multithreading overhead is relatively
+high compared to the number of calculations in our
+forward function.
+
+
 
 ## Acknowledgments
 
