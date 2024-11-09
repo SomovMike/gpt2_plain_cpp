@@ -27,7 +27,7 @@ void Tokenizer::_json_parse(const std::string &fname) {
     {
         std::ifstream ifs(fname);
         if (!ifs) {
-            std::cerr << "Failed to open %s\n", fname.c_str();
+            std::cerr << "Failed to open " << fname;
             exit(1);
         }
 

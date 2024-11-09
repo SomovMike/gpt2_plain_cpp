@@ -305,42 +305,43 @@ void SelfAttention::forward(const float *input, float *output) {
     float *k = run_state.qkv + Config::dim; // (n_heads, head_size)
     float *v = run_state.qkv + Config::dim*2; // (n_heads, head_size)
     //Cache K and V
-    memcpy(_k_cache + _prev_length*Config::dim, k, Config::dim*sizeof(*k));
-    memcpy(_v_cache + _prev_length*Config::dim, v, Config::dim*sizeof(*v));
+    memcpy(_k_cache + (_prev_length%Config::seq_len)*Config::dim, k, Config::dim*sizeof(*k));
+    memcpy(_v_cache + (_prev_length%Config::seq_len)*Config::dim, v, Config::dim*sizeof(*v));
     _prev_length++;
 
-    float scale = 1.0f / std::sqrtf(Config::head_size);
-    for (int t = 0; t < _prev_length; t++) {
+    float scale = 1.0f / std::sqrt(Config::head_size);
+    int cache_length = std::min(_prev_length, Config::seq_len);
+    for (int t = 0; t < cache_length; t++) {
         for (int h = 0; h < Config::n_heads; h++) {
             float dot_product = 0.0f;
             for (int i = 0; i < Config::head_size; i++) {
                 // Compute the index for the query vector
                 int q_index = h * Config::head_size + i;
                 // Compute the index for the key vector at time t
-                int k_index = t * Config::dim + h * Config::head_size + i;
+                int k_index = ((t + _prev_length - cache_length) % Config::seq_len) * Config::dim + h * Config::head_size + i;
                 // Accumulate the dot product
                 dot_product += q[q_index] * _k_cache[k_index];
             }
             // Store the attention score for head h at time t
-            run_state.attn[h * _prev_length + t] = dot_product*scale;
+            run_state.attn[h * cache_length + t] = dot_product*scale;
         }
     }
 
     for (int h = 0; h < Config::n_heads; h++) {
-        float *softmax_input = run_state.attn + h * _prev_length;
-        softmax(softmax_input, _prev_length);
+        float *softmax_input = run_state.attn + h * cache_length;
+        softmax(softmax_input, cache_length);
     }
 
     // Compute att * v
     for (int h = 0; h < Config::n_heads; h++) {
         for (int i = 0; i < Config::head_size; i++) {
             float sum = 0.0f;
-            for (int t = 0; t < _prev_length; t++) {
+            for (int t = 0; t < cache_length; t++) {
                 // Index for attention weight
-                int att_idx = h * _prev_length + t;
+                int att_idx = h * cache_length + t;
 
                 // Index for value vector
-                int v_idx = t * Config::dim + h * Config::head_size + i;
+                int v_idx = ((t + _prev_length - cache_length) % Config::seq_len) * Config::dim + h * Config::head_size + i;
 
                 // Accumulate the weighted value
                 sum += run_state.attn[att_idx] * _v_cache[v_idx];
@@ -368,7 +369,7 @@ void TransformerBlock::forward(const float *input, float *output) {
 }
 
 void GPT2Pretrained::forward(const int token, float *logits) {
-    int pos = _prev_length++;
+    int pos = std::min(_prev_length++, Config::seq_len);
     _wte.forward(token, run_state.emb_token_out);
     _wpe.forward(pos, run_state.emb_pos_out);
     for (int i = 0; i < Config::dim; i++){

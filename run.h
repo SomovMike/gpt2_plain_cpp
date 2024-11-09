@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath> // for tanh, sqrt, pow, and M_PI
+#include <cstring>
 #include <algorithm>
 #include <random>
 #include <numeric>  // for std::accumulate
