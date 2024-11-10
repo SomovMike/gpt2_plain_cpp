@@ -20,6 +20,9 @@ inference speed and efficiency.
 - **Python3 with Pytorch installed:** For running the conversion script to prepare model weights.
 - **OpenMP (Optional):** for running inference on multiple threads
 
+Or just use [Dockerfile](https://github.com/SomovMike/gpt2_plain_cpp/blob/main/Dockerfile). It will create an image with all requirements (including downloading model weights
+and vocabulary).
+
 ### Preparing the Model Weights and Vocabulary
 
 Obtain the GPT-2 model weights (pytorch_model.bin) from [Hugging Face](https://huggingface.co/openai-community/gpt2/tree/main).
