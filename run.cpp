@@ -180,7 +180,7 @@ void softmax(float* x, int n_channels) {
 
     float sum_exp = 0.0f;
     for (int t = 0; t < n_channels; t++) {
-        x[t] = std::expf(x[t] - max_score);
+        x[t] = std::exp(x[t] - max_score);
         sum_exp += x[t];
     }
 
